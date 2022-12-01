@@ -52,6 +52,12 @@ Route::middleware('auth:api')->group( function(){
      //Store PR data  
      Route::post('/pr/submit-prinfo', [DigitalprController::class, 'submit_prinfo']);
 
+    //DCS number info  
+    Route::post('/dcs/dcs-info', [DcsController::class, 'dcs_info']);
+
+     //DCS number details  
+     Route::post('/dcs/dcs-details', [DcsController::class, 'dcs_details']);
+
      //DCS bank code and name  
      Route::post('/dcs/bank-info', [DcsController::class, 'bank_info']);
 

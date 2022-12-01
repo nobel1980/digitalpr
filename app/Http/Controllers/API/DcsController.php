@@ -12,13 +12,79 @@ use DB;
 
 class DcsController extends Controller
 {
+  /*
+     @ DCS information
+     @ parameter dcs_date     
+    */
+    public function dcs_info(Request $request)
+    {
+        $dcsInfo = $request->all();
+        $user= auth()->user();
+        $dcsDate = $dcsInfo['dcs_date'];
+        $prjType = $dcsInfo['prj_type'];
+        $orgCode = $user->dcs_org_code;
+        //$orgCode = '067700'; 
+
+        /*
+          @ Sample SQL query (Need update query)
+            SELECT DISTINCT DCS_NO,ORG_CODE,DCS_YM,DCS_DATE,PTYPE FROM PRCOLLECTION.PR_INFO@ONLINEPAY_DBLK
+            WHERE ORG_CODE=:ORG_CODE
+            AND TO_CHAR(DCS_DATE,'YYYYMMDD')=:DCS_DATE
+            AND PTYPE=:PTYPE
+            --and SUBSTR(DCS_NO,1,1) NOT IN('F')
+        */
+        $dcsInfo= DB::select("SELECT DISTINCT DCS_NO,ORG_CODE,DCS_YM,DCS_DATE,PTYPE 
+        FROM PRCOLLECTION.PR_INFO@POLICY_DBL
+        WHERE ORG_CODE=:ORG_CODE
+        AND TO_CHAR(DCS_DATE,'YYYYMMDD')=:DCS_DATE
+        AND PTYPE=:PTYPE", 
+        ['ORG_CODE' => $orgCode, 'DCS_DATE' => $dcsDate, 'PTYPE' => $prjType, ]);  
+              
+        if (!($dcsInfo)) {
+            return response(['message' => 'DCS info does not exist'], 400);
+           }        
+   
+          $dcsInfo = json_decode( json_encode($dcsInfo), true);
+          
+          return response([ 'dcs_info' => ApiResource::collection($dcsInfo), 'message' => 'Success'], 200);        
+    }
+
+   /*
+     @ DCS details information
+     @ parameter dcs_no     
+    */
+    public function dcs_details(Request $request)
+    {
+        $dcsBank = $request->all();
+        $DCS_NO = $dcsBank['dcs_no'];
+        /*
+          @ Sample SQL query
+            SELECT DISTINCT ORG_CODE, DCS_NO, DCS_YM,SUM(PR_AMT)DCS_AMT,SUM(NVL(PR_AMT,0)) DEP_AMT,DCS_SLNO
+            FROM PRCOLLECTION.PR_INFO@ONLINEPAY_DBLK where DCS_NO='FE051600-214-20221201'
+            AND NVL(PR_STATUS,'X')<>'2'
+            GROUP BY ORG_CODE, DCS_NO, DCS_YM, DCS_SLNO,DCS_SLNO;
+        */
+        $dcsDetails= DB::select("SELECT DISTINCT ORG_CODE, DCS_NO, DCS_YM,SUM(PR_AMT)DCS_AMT,SUM(NVL(PR_AMT,0)) DEP_AMT,DCS_SLNO
+        FROM PRCOLLECTION.PR_INFO@POLICY_DBL WHERE DCS_NO=:DCS_NO
+        AND NVL(PR_STATUS,'X')<>'2'
+        GROUP BY ORG_CODE, DCS_NO, DCS_YM, DCS_SLNO,DCS_SLNO", 
+        ['DCS_NO' => $DCS_NO]);    
+        
+        if (!($dcsDetails)) {
+            return response(['message' => 'DCS details does not exist'], 400);
+           }        
+   
+          $dcsDetails = json_decode( json_encode($dcsDetails), true);
+          
+          return response([ 'dcs_details' => ApiResource::collection($dcsDetails), 'message' => 'Success'], 200);        
+    }
+
     /*
      @ Bank information
      @ parameter Project Type     
     */
     public function bank_info(Request $request)
     {
-
         $dcsBank = $request->all();
         $ACC_PRJ = $dcsBank['ACC_PRJ'];
         /*
