@@ -23,6 +23,23 @@ class DcsController extends Controller
         $dcsDate = $dcsInfo['dcs_date'];
         $prjType = $dcsInfo['prj_type'];
         $orgCode = $user->dcs_org_code;
+
+      // validation check
+      $rules=[
+        'dcs_date'=>'required',
+        'prj_type'=>'required'      
+      ];
+
+      $customMessage=[
+          'dcs_date.required'=>'DCS date is required',
+          'prj_type.required'=>'Project type is required',
+      ];
+
+      $validator=Validator::make($dcsInfo,$rules,$customMessage);
+
+      if($validator->fails()){
+          return response()->json($validator->errors(),422);
+      }
         //$orgCode = '067700'; 
 
         /*
@@ -30,16 +47,15 @@ class DcsController extends Controller
             SELECT DISTINCT DCS_NO,ORG_CODE,DCS_YM,DCS_DATE,PTYPE FROM PRCOLLECTION.PR_INFO@ONLINEPAY_DBLK
             WHERE ORG_CODE=:ORG_CODE
             AND TO_CHAR(DCS_DATE,'YYYYMMDD')=:DCS_DATE
-            AND PTYPE=:PTYPE
-            --and SUBSTR(DCS_NO,1,1) NOT IN('F')
+            AND PTYPE=:PTYPE;
         */
         $dcsInfo= DB::select("SELECT DISTINCT DCS_NO,ORG_CODE,DCS_YM,DCS_DATE,PTYPE 
-        FROM PRCOLLECTION.PR_INFO@POLICY_DBL
+        FROM PRCOLLECTION.PR_INFO
         WHERE ORG_CODE=:ORG_CODE
         AND TO_CHAR(DCS_DATE,'YYYYMMDD')=:DCS_DATE
         AND PTYPE=:PTYPE", 
         ['ORG_CODE' => $orgCode, 'DCS_DATE' => $dcsDate, 'PTYPE' => $prjType, ]);  
-              
+         
         if (!($dcsInfo)) {
             return response(['message' => 'DCS info does not exist'], 400);
            }        
@@ -65,7 +81,7 @@ class DcsController extends Controller
             GROUP BY ORG_CODE, DCS_NO, DCS_YM, DCS_SLNO,DCS_SLNO;
         */
         $dcsDetails= DB::select("SELECT DISTINCT ORG_CODE, DCS_NO, DCS_YM,SUM(PR_AMT)DCS_AMT,SUM(NVL(PR_AMT,0)) DEP_AMT,DCS_SLNO
-        FROM PRCOLLECTION.PR_INFO@POLICY_DBL WHERE DCS_NO=:DCS_NO
+        FROM PRCOLLECTION.PR_INFO WHERE DCS_NO=:DCS_NO
         AND NVL(PR_STATUS,'X')<>'2'
         GROUP BY ORG_CODE, DCS_NO, DCS_YM, DCS_SLNO,DCS_SLNO", 
         ['DCS_NO' => $DCS_NO]);    

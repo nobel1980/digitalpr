@@ -30,6 +30,9 @@ Route::middleware('auth:api')->group( function(){
     //User DCS Office Info  
     Route::get('/office/user-office', [DigitalprController::class, 'user_dcs_office']); 
 
+    //Deposite type  
+    Route::get('/account/deposit-type', [DigitalprController::class, 'deposit_type']);
+
     //Agent/FA Info  
     Route::post('/office/agent-info', [DigitalprController::class, 'agent_info']); 
     //Route::get('/office/agent-info/{fa_code}', [DigitalprController::class, 'agent_info']); 
@@ -46,8 +49,8 @@ Route::middleware('auth:api')->group( function(){
     //Next premium date for Renew or deffered policy  
     Route::post('/policy/next-prem-date', [DigitalprController::class, 'next_prem_date']);
 
-    //MR info  
-    Route::post('/mr/acc-head', [DigitalprController::class, 'acc_head']);
+    //MR account head info  
+    Route::post('/account/acc-head', [DigitalprController::class, 'acc_head']);
 
      //Store PR data  
      Route::post('/pr/submit-prinfo', [DigitalprController::class, 'submit_prinfo']);

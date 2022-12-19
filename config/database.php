@@ -45,10 +45,10 @@ return [
 
         'oracle' => [
             'driver' => 'oracle',
-            'host' => '172.30.0.197',
+            'host' => '172.30.0.45',
             'port' => '1521',
-            'database' => 'LINUX_DB',
-            'service_name' => 'POLICY',
+            'database' => 'TEST_NEW',
+            'service_name' => 'FARTEST',
             'username' => 'DIGITALPR',
             'password' => 'DIGITALPR',
             'charset' => 'utf8',

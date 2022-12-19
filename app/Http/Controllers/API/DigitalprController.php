@@ -37,8 +37,7 @@ class digitalprController extends Controller
         elseif($PTYPE =2)
            { $PTYPE ='SB'; }   
         //print_r($request->headers->all());
-        // dd($PTYPE);
-        // exit();
+  
 
         $dcsOffice = DB::select('SELECT A.OFF_NAME AS AGENCY_NAME,A.AGENCY_CODE,A.Z_NAME, A.Z_CODE, A.SC_NAME, A.SC_CODE, A.DIV_NAME, A.DIV_CODE,MOTHER_OFFICE
         FROM DEV_ADMIN.OFF_ALL A
@@ -55,6 +54,37 @@ class digitalprController extends Controller
           return response([ 'office_info' => ApiResource::collection($dcsOffice), 'message' => 'Success'], 200);        
     }
 
+    /*
+     @ Deposit type information
+     @  Parameter receipt type PR/MR
+    */
+    public function deposit_type(Request $request)
+    {
+        /*
+          @ Sample SQL query
+          SELECT DEPCODE, DEPNAME FROM PRCOLLECTION.DEPTYPE WHERE DTYPE='1' ORDER BY DEPCODE;
+        */
+
+        $rcptType = $request->all();
+        $rcptType = $rcptType['rcpt_type'];
+  
+        // dd($rcptType);
+        // exit();
+
+        $depType = DB::select('SELECT DEPCODE, DEPNAME
+        FROM PRCOLLECTION.DEPTYPE
+        WHERE DTYPE=:dep_type', 
+        ['dep_type' => $rcptType]);    
+        
+        if (!($depType)) {
+            return response(['message' => 'Deposit type does not exist'], 400);
+           }        
+   
+          $depType = json_decode( json_encode($depType), true);
+          
+          return response([ 'deposit_type' => ApiResource::collection($depType), 'message' => 'Success'], 200);        
+    }
+
       
     /* 
       @ Proposal info for New policy 
@@ -65,27 +95,57 @@ class digitalprController extends Controller
         $propNo = $propInfo['proposal_no'];
         $pjType = $propInfo['pj_type'];
 
+        $rules=[
+            'proposal_no'=>'required',
+            'pj_type'=>'required'     
+        ];
+
+        $customMessage=[
+            'proposal_no.required'=>'Proposal Number is required',
+            'pj_type.required'=>'Project type is required'
+        ];
+
+        $validator=Validator::make($propInfo,$rules,$customMessage);
+         
+        if($validator->fails()){
+            return response()->json($validator->errors(),422);
+        }
+
         /*
-         @ Sample SQL query
+         @ Sample SQL query by Nazmul sir
          @ select * from POLICY.APPS_POLICY_ALL where proposal_n = 'E00047/026200/134/2019' AND PTYPE = 'EKOK';
-        */
-        $propInfo = DB::table('POLICY.APPS_POLICY_ALL')
+         SELECT A.* FROM POLICY.V_POLICY_DETAILS A 
+            WHERE A.POLICY_NO='F00187/070300/128/2018' 
+            AND DECODE(A.PTYPE,'EKOK','EKOK','FDPS','EKOK','SB')='EKOK';
+        
+            $propNo = E00067/010100/182/2022
+            $propInfo = DB::table('POLICY.APPS_POLICY_ALL')
                     ->select(DB::raw('*'))
                     ->where('PROPOSAL_N', '=', $propNo)
                     ->where('PTYPE', '=', $pjType)
                     ->get();  
+                            
+        
+        $propInfo = DB::table('POLICY.V_POLICY_DETAILS A')
+                    ->select(DB::raw('*'))
+                    ->where('PROPOSAL_N', '=', $propNo)
+                    ->where('PTYPE', '=', $pjType)
+                    ->get();    
                     
-        // $propInfo = DB::select('SELECT POLICY_NO, PROPOSAL_N, PROPOSER, RISKDATE, MOBILE, TABLE_ID, TERM, INSTMODE, POLICY_FROM_CLAIM, SUM_INSURE, TOTAL_PREM, COUNTRY_CODE, ISO_CODE, ACC_CODE, ACC_NAME, PTYPE, POLPRJ, ADJUST_FROM, BANK_CONF_REFNO, COMM_PREM, UWREQ 
-        // FROM POLICY.APPS_POLICY_ALL@POLICY_DBL
-        // WHERE PROPOSAL_N =:PROPOSAL_N
-        // AND PTYPE=:PTYPE', 
-        // ['PROPOSAL_N' => $propNo, 'PTYPE' => $pjType]);              
-
+        */            
+            $propInfo = DB::select('SELECT *
+                FROM POLICY.V_POLICY_DETAILS A
+                WHERE PROPOSAL_N=:dep_type AND PTYPE=:ptype', 
+                ['dep_type' => $propNo, 'ptype' => $pjType]);            
+      
         if (!($propInfo)) {
             return response(['message' => 'Invalid Proposal Number'], 400);
             }        
     
         $propInfo = json_decode( json_encode($propInfo), true);
+
+// dd($propInfo);
+// exit();
         
         return response([ 'proposal_info' => ApiResource::collection($propInfo), 'message' => 'Success'], 200);        
     }
@@ -124,8 +184,15 @@ class digitalprController extends Controller
         if (!($policyInfo)) {
             return response(['message' => 'Invalid Policy Number.'], 400);
            }        
-   
+    
           $policyInfo = json_decode( json_encode($policyInfo), true);
+
+           $riskDate = Carbon::parse($policyInfo['0']['riskdate'])->format('d-m-Y');
+           $nextPrem = Carbon::parse($policyInfo['0']['nextprem'])->format('d-m-Y');
+           $maturity = Carbon::parse($policyInfo['0']['maturity'])->format('d-m-Y');
+           $policyInfo['0']['riskdate'] = $riskDate;
+           $policyInfo['0']['nextprem'] = $nextPrem;
+           $policyInfo['0']['maturity'] = $maturity;
           
           return response([ 'policy_info' => ApiResource::collection($policyInfo), 'message' => 'Success'], 200);        
       }
@@ -155,10 +222,10 @@ class digitalprController extends Controller
          return response()->json($validator->errors(),422);
      }
  
-      // SELECT PRJ, CODE, NAME, STATUS, LIC_CER_STATUS FROM DEV_ADMIN.ORG_ALL_EKOK_SB WHERE STATUS = 'ACTIVE' AND LIC_CER_STATUS = 'E' AND  CODE='90084980';
+      // SELECT PRJ, CODE, NAME, STATUS, LIC_CER_STATUS FROM DEV_ADMIN.ORG_ALL_EKOK_SB WHERE STATUS = 'A' AND LIC_CER_STATUS = 'E' AND  CODE='90084980';
       $agentInfo = DB::table('DEV_ADMIN.ORG_ALL_EKOK_SB')
                   ->select(DB::raw('PRJ, CODE, NAME, STATUS, LIC_CER_STATUS'))
-                  ->where('STATUS', '=', 'ACTIVE')
+                  ->where('STATUS', '=', 'A')
                   ->where('LIC_CER_STATUS', '=', 'E')
                   ->where('CODE', '=', $FaCode)
                   ->get();             
@@ -211,30 +278,27 @@ class digitalprController extends Controller
             return response()->json($validator->errors(),422);
         }
 
+        $riskdate = Carbon::parse($riskdate);
+
+        // dd($riskdate);
+        // exit;
         /*
         @ Sample SQL Query
          select  POLICY.PKG_FILIC.F_PNEXTPAY@ONLINEPAY_DBLK('12' ,'04','1','25-MAY-2011','2') AS NEXT_PREM_DATE FROM DUAL;
-         $policyInfo = DB::select( "select  POLICY.PKG_FILIC.F_PNEXTPAY('12' ,'04','1','25-MAY-2011','2') AS NEXT_PREM_DATE FROM DUAL");
+         select TO_DATE(POLICY.PKG_FILIC.F_PNEXTPAY ('12' ,'04','1','25-MAY-2011','2'),'YYYY-MM-DD') AS NEXT_PREM_DATE FROM DUAL;         
         */
-          
-        $nextPremDate = DB::select('SELECT  POLICY.PKG_FILIC.F_PNEXTPAY(:plan, :term, :paymode, : riskdate, :TotInstpaid) AS NEXT_PREM_DATE FROM DUAL', ['PLAN' => $plan, 'TERM' => $term, 'PAYMODE' => $payMode, 'RISKDATE' => $riskdate, 'TotInstpaid'=> $TotInstPaid]);       
 
-        //$nextPremDate = DB::select("SELECT  TO_CHAR( POLICY.PKG_FILIC.F_PNEXTPAY(:plan, :term, :paymode, : riskdate, :TotInstpaid), 'YYYY-MM-DD' ) AS NEXT_PREM_DATE FROM DUAL", ['PLAN' => $plan, 'TERM' => $term, 'PAYMODE' => $payMode, 'RISKDATE' => $riskdate, 'TotInstpaid'=> $TotInstPaid]);       
-              
-        
-        //$nextPremDate = Carbon::parse($nextPremDate['NEXT_PREM_DATE']);
-       //$nextPremDate['nextPremDate'] = $nextPremDate->format('d M Y');
-        
-        dd($nextPremDate);
-        exit();       
+        $nextPremDate = DB::select("SELECT  TO_CHAR( POLICY.PKG_FILIC.F_PNEXTPAY(:plan, :term, :paymode, : riskdate, :TotInstpaid), 'DD-MM-YYYY') AS NEXT_PREM_DATE FROM DUAL", ['PLAN' => $plan, 'TERM' => $term, 'PAYMODE' => $payMode, 'RISKDATE' => $riskdate, 'TotInstpaid'=> $TotInstPaid]);       
+        //$nextPremDate = DB::select( "SELECT  TO_CHAR(to_date(POLICY.PKG_FILIC.F_PNEXTPAY('12' ,'04','1','25-MAY-2011','2'), 'DDMMRRRR'),'DDMMYYYY') AS NEXT_PREM_DATE FROM DUAL");
+                    
         
         if (!($nextPremDate)) {
-            return response(['message' => 'Invalid Policy Number.'], 400);
+            return response(['message' => 'Invalid data.'], 400);
            }        
    
           $nextPremDate = json_decode( json_encode($nextPremDate), true);
           
-          return response([ 'policy_info' => ApiResource::collection($nextPremDate), 'message' => 'Success'], 200);        
+          return response([ 'next_prem_date' => ApiResource::collection($nextPremDate), 'message' => 'Success'], 200);        
       }
 
       /*
@@ -304,7 +368,7 @@ class digitalprController extends Controller
         
         /* 
           @ Sample SQL Query        
-            SELECT NVL(PRCOLLECTION.COMM_ADJSUTABLE_STATUS@ONLINEPAY_DBLK('E00011/012900/228/2022','01','10','1','110000','N',NULL,'PR'),'N') AS STATUS FROM DUAL
+            SELECT NVL(PRCOLLECTION.COMM_ADJSUTABLE_STATUS@ONLINEPAY_DBLK('E00011/012900/228/2022','01','10','1','110000','N',NULL,'PR'),'N') AS STATUS FROM DUAL;
           @ Query for proposal status (Y/N)
           @ Work properly
         */
@@ -329,18 +393,18 @@ class digitalprController extends Controller
         if($depType=='1' AND $depCode=='01' ){
             /*Start table check */
             if($tableId=='07'){
-            $faComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate , :riskdate, '1', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
-                ((policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate, :riskdate,'1','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*5)/100) AS FA FROM DUAL", 
+            $faComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION(:currdate , :riskdate, '1', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
+                ((policy.pkg_comm.COMMISSION(:currdate, :riskdate,'1','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*5)/100) AS FA FROM DUAL", 
                 ['currdate' => $currdate,  'RISKDATE' => $riskdate, 'TABLE_ID' => $tableId, 'TERM' => $term, 'receptAmt' => $receptAmt]);
 
 
-            $umComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate , :riskdate, '2', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
-                ((policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate, :riskdate,'2','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*5)/100) AS UM FROM DUAL", 
+            $umComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION(:currdate , :riskdate, '2', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
+                ((policy.pkg_comm.COMMISSION(:currdate, :riskdate,'2','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*5)/100) AS UM FROM DUAL", 
                 ['currdate' => $currdate,  'RISKDATE' => $riskdate, 'TABLE_ID' => $tableId, 'TERM' => $term, 'receptAmt' => $receptAmt]);
 
 
-            $bmComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate , :riskdate, '3', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
-                ((policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate, :riskdate,'3','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*5)/100) AS BM FROM DUAL", 
+            $bmComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION(:currdate , :riskdate, '3', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
+                ((policy.pkg_comm.COMMISSION(:currdate, :riskdate,'3','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*5)/100) AS BM FROM DUAL", 
                 ['currdate' => $currdate,  'RISKDATE' => $riskdate, 'TABLE_ID' => $tableId, 'TERM' => $term, 'receptAmt' => $receptAmt]);
 
 
@@ -355,18 +419,18 @@ class digitalprController extends Controller
                 $Comm[0]['bm'] = $Com[2]['bm'];
                 
             }else{
-            $faComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate , :riskdate, '1', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
-                ((policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate, :riskdate,'1','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*15)/100) AS FA FROM DUAL", 
+            $faComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION(:currdate , :riskdate, '1', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
+                ((policy.pkg_comm.COMMISSION(:currdate, :riskdate,'1','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*15)/100) AS FA FROM DUAL", 
                 ['currdate' => $currdate,  'RISKDATE' => $riskdate, 'TABLE_ID' => $tableId, 'TERM' => $term, 'receptAmt' => $receptAmt]);
 
 
-            $umComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate , :riskdate, '2', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
-                ((policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate, :riskdate,'2','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*15)/100) AS UM FROM DUAL", 
+            $umComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION(:currdate , :riskdate, '2', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
+                ((policy.pkg_comm.COMMISSION(:currdate, :riskdate,'2','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*15)/100) AS UM FROM DUAL", 
                 ['currdate' => $currdate,  'RISKDATE' => $riskdate, 'TABLE_ID' => $tableId, 'TERM' => $term, 'receptAmt' => $receptAmt]);
 
 
-            $bmComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate , :riskdate, '3', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
-                ((policy.pkg_comm.COMMISSION@POLICY_DBL(:currdate, :riskdate,'3','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*15)/100) AS BM FROM DUAL", 
+            $bmComm = DB::select("SELECT FLOOR(policy.pkg_comm.COMMISSION(:currdate , :riskdate, '3', 'X', :TABLE_ID, :TERM, 0,  :receptAmt, 'N')*1 -
+                ((policy.pkg_comm.COMMISSION(:currdate, :riskdate,'3','X', :TABLE_ID, :TERM, 0, :receptAmt, 'N')*1)*15)/100) AS BM FROM DUAL", 
                 ['currdate' => $currdate,  'RISKDATE' => $riskdate, 'TABLE_ID' => $tableId, 'TERM' => $term, 'receptAmt' => $receptAmt]);
 
             }
@@ -385,7 +449,6 @@ class digitalprController extends Controller
         } 
         
       }     
- 
  
         if (!($Comm)) {
             return response(['message' => 'Invalid Policy Number.'], 400);
@@ -465,10 +528,12 @@ class digitalprController extends Controller
         return response([ 'pr_info' => ApiResource::collection($prInfo), 'message' => 'Success'], 200);        
     }
 
+
     /*
-      @ Account head information
-      @ POST method
-      @ 
+     @ Account head information
+     @ GET method
+     @ ACC_TYPE : MR
+     @  Parameter PRJ_CODE :  EKOK/SB
     */
     public function acc_head(Request $request)
     {
@@ -497,7 +562,7 @@ class digitalprController extends Controller
         AND PRJ_CODE=:PTYPE
         ORDER BY CODE,SUBCODE1,SUBCODE2;       
        */           
-        $accHead = DB::select('SELECT DISTINCT NAME3 ACC_NAME,SUBCODE2,SUBCODE1,NAME2,CODE,NAME1,ALL_CODE FROM ACC.DCS_CREDIT_VOUCHER_ACC@POLICY_DBL
+        $accHead = DB::select('SELECT DISTINCT NAME3 ACC_NAME,SUBCODE2,SUBCODE1,NAME2,CODE,NAME1,ALL_CODE FROM ACC.DCS_CREDIT_VOUCHER_ACC
         WHERE ACC_TYPE=:ACC_TYPE
         AND PRJ_CODE=:PRJ_CODE',
         ['ACC_TYPE' => 'MR', 'PRJ_CODE' => $prjType]);            
