@@ -54,7 +54,19 @@ return [
             'charset' => 'utf8',
             'prefix' => '',
         ],
-
+/*
+        'oracle' => [
+            'driver' => 'oracle',
+            'host' => '172.30.0.197',
+            'port' => '1521',
+            'database' => 'LINUX_DB',
+            'service_name' => 'POLICY',
+            'username' => 'DIGITALPR',
+            'password' => 'DIGITALPR',
+            'charset' => 'utf8',
+            'prefix' => '',
+        ],
+*/
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DATABASE_URL'),

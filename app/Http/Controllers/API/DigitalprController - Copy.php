@@ -132,33 +132,20 @@ class digitalprController extends Controller
                     ->where('PTYPE', '=', $pjType)
                     ->get();    
                     
-                  
-        $propInfo = DB::select('SELECT *
-            FROM POLICY.V_POLICY_DETAILS A
-            WHERE PROPOSAL_N=:dep_type AND PTYPE=:ptype', 
-            ['dep_type' => $propNo, 'ptype' => $pjType]);  
-            
-      */        
-             
-        $propInfo = DB::select('SELECT * 
-                    FROM POLICY.APPS_POLICY_ALL
-                    WHERE PROPOSAL_N =:PROPOSAL_N
-                    AND PTYPE=:PTYPE', 
-                    ['PROPOSAL_N' => $propNo, 'PTYPE' => $pjType]);   
-        
-                          
+        */            
+            $propInfo = DB::select('SELECT *
+                FROM POLICY.V_POLICY_DETAILS A
+                WHERE PROPOSAL_N=:dep_type AND PTYPE=:ptype', 
+                ['dep_type' => $propNo, 'ptype' => $pjType]);            
+       
         if (!($propInfo)) {
             return response(['message' => 'Invalid Proposal Number'], 400);
-            }
-      
-                       
+            }        
+    
         $propInfo = json_decode( json_encode($propInfo), true);
 
-        if (strcmp($propInfo['0']['proposal_n'], $propInfo['0']['policy_no']) !== 0) {
-            return response(['message' => 'Policy Number already setup'], 200);
-        }  
-
-
+// dd($propInfo);
+// exit();
         
         return response([ 'proposal_info' => ApiResource::collection($propInfo), 'message' => 'Success'], 200);        
     }
@@ -187,88 +174,26 @@ class digitalprController extends Controller
         /*
          SELECT A.POLICY_NO,PROPOSAL_N,A.PROPOSER,RISKDATE,MOBILE,TABLE_ID,TERM,INSTMODE,SUM_INSURE,
                     INSTPREM AS TOTAL_PREM,COUNTRY_CODE,ISO_CODE,ACC_CODE,ACC_NAME FROM POLICY.APPS_POLICY_ALL A WHERE POLICY_NO = '1330001452';
-
-        SELECT A.POLICY_NO,PROPOSAL_N,A.PROPOSER,RISKDATE,MOBILE,TABLE_ID,TERM,DECODE(INSTMODE,'1','YEARLY','2','H-YEARLY','3','QUARTERLY','4','SINGLE','5','MONTHLY') as INSTMODE ,
-             SUM_INSURE,prcollection.instdue(policy_no,table_id,instmode,riskdate,nextprem) as instdue,NVL(INSTPREM,0)*prcollection.instdue(policy_no,table_id,instmode,riskdate,nextprem) AS DUEPREM,
-             INSTPREM AS TOTAL_PREM,COUNTRY_CODE,ISO_CODE,ACC_CODE,ACC_NAME FROM POLICY.APPS_POLICY_ALL A WHERE POLICY_NO = '1510001155';            
         */
-
-        
         $policyInfo = DB::table('POLICY.APPS_POLICY_ALL A')
                     ->select(DB::raw('A.POLICY_NO,PROPOSAL_N,A.PROPOSER,RISKDATE, NEXTPREM, MATURITY, MOBILE,TABLE_ID,TERM,INSTMODE,SUM_INSURE,
                     INSTPREM AS TOTAL_PREM,COUNTRY_CODE,ISO_CODE,ACC_CODE,ACC_NAME, STATUS'))
                     ->where('POLICY_NO', '=', $polNo)
-                    ->get(); 
-                                  
-        
-        $instDue = DB::select('SELECT PRCOLLECTION.INSTDUE(POLICY_NO,TABLE_ID,INSTMODE,RISKDATE,NEXTPREM) AS INSTDUE
-                    FROM POLICY.APPS_POLICY_ALL  A
-                    WHERE POLICY_NO=:POLICY_NO', 
-                    ['POLICY_NO' => $polNo]);    
-                    
-        
-        $duePrem = DB::select('SELECT NVL(INSTPREM,0)*PRCOLLECTION.INSTDUE(POLICY_NO,TABLE_ID,INSTMODE,RISKDATE,NEXTPREM) AS DUEPREM
-                    FROM POLICY.APPS_POLICY_ALL  A
-                    WHERE POLICY_NO=:POLICY_NO', 
-                    ['POLICY_NO' => $polNo]);     
-                      
-           
-        /*                    
-        $policyInfo = DB::table('POLICY.APPS_POLICY_ALL A') 
-                    ->select(DB::raw('A.POLICY_NO,PROPOSAL_N,A.PROPOSER,RISKDATE, NEXTPREM, MATURITY, MOBILE,TABLE_ID,TERM,INSTMODE,SUM_INSURE,
-                    INSTPREM AS TOTAL_PREM,COUNTRY_CODE,ISO_CODE,ACC_CODE,ACC_NAME, STATUS')) 
-                    ->select(DB::select('SELECT PRCOLLECTION.INSTDUE(POLICY_NO,TABLE_ID,INSTMODE,RISKDATE,NEXTPREM) AS INSTDUE FROM POLICY.APPS_POLICY_ALL  A')->where('POLICY_NO', '=', $polNo))
-                    ->where('POLICY_NO', '=', $polNo)
-                    ->get();
+                    ->get();             
 
-                    $insDue = DB::select("SELECT PRCOLLECTION.INSTDUE(POLICY_NO,TABLE_ID,INSTMODE,RISKDATE,NEXTPREM) AS INSTDUE       
-                     FROM POLICY.APPS_POLICY_ALL  A  WHERE  POLICY_NO  =  '1510001155'");  
-        */                     
-                                                                    
         if (!($policyInfo)) {
             return response(['message' => 'Invalid Policy Number.'], 400);
            }        
     
           $policyInfo = json_decode( json_encode($policyInfo), true);
-          $instDue = json_decode( json_encode($instDue), true);
-          $duePrem = json_decode( json_encode($duePrem), true);
-            
-          
-          
-           $policyInfo['0']['instdue'] = $instDue['0']['instdue'];     
-           $policyInfo['0']['dueprem'] = $duePrem['0']['dueprem'];     
+
            $riskDate = Carbon::parse($policyInfo['0']['riskdate'])->format('d-m-Y');
            $nextPrem = Carbon::parse($policyInfo['0']['nextprem'])->format('d-m-Y');
            $maturity = Carbon::parse($policyInfo['0']['maturity'])->format('d-m-Y');
            $policyInfo['0']['riskdate'] = $riskDate;
            $policyInfo['0']['nextprem'] = $nextPrem;
            $policyInfo['0']['maturity'] = $maturity;
-
-           $policy_mode = $policyInfo['0']['instmode'];
-
-            switch ($policy_mode) {
-            case "1":
-                $policy_mode ='YEARLY';
-                $policyInfo['0']['instmode'] = $policy_mode;
-                break;
-            case "2":
-                $policy_mode ='H-YEARLY';
-                $policyInfo['0']['instmode'] = $policy_mode;
-                break;
-            case "3":
-                $policy_mode ='QUARTERLY';
-                $policyInfo['0']['instmode'] = $policy_mode;
-                break;
-            case "4":
-                $policy_mode ='SINGLE';
-                $policyInfo['0']['instmode'] = $policy_mode;
-                break;
-            case "5":
-                $policy_mode ='MONTHLY';
-                $policyInfo['0']['instmode'] = $policy_mode;
-                break;        
-            }
-                     
+          
           return response([ 'policy_info' => ApiResource::collection($policyInfo), 'message' => 'Success'], 200);        
       }
       
@@ -434,14 +359,13 @@ class digitalprController extends Controller
         /*
           @ Sample SQL query
             SELECT FA AS FA,UM,BM FROM POLICY.PROPOSAL_ALL WHERE PROPOSAL_N='E00047/026200/134/2019' AND ROWNUM=1;
-           
+        */    
                     
         $agentInfo = DB::table('POLICY.PROPOSAL_ALL')
         ->select(DB::raw('FA, UM, BM'))        
         ->where('PROPOSAL_N', '=', $propNo)
         ->get();    
-        */ 
-
+        
         /* 
           @ Sample SQL Query        
             SELECT NVL(PRCOLLECTION.COMM_ADJSUTABLE_STATUS@ONLINEPAY_DBLK('E00011/012900/228/2022','01','10','1','110000','N',NULL,'PR'),'N') AS STATUS FROM DUAL;
@@ -554,11 +478,9 @@ class digitalprController extends Controller
         $prInfo['USER_NAME'] = $user->name;
         //$dcsOrgCode['DCS_ORG_CODE'] = $user->dcs_org_code;
         $prInfo['ZONE_CODE'] = $user->zone_code;
-        $prInfo['DCS_SLNO'] = '01'; /* By  */
         //$prInfo['ORG_CODE'] = $user->org_code;
         $prInfo['PR_DATE']  = Carbon::now()->toDateTimeString();
-        $prInfo['DCS_DATE']  = Carbon::now()->toDateTimeString();
-        $dcsDate  = Carbon::now()->format('Ymd');
+        //$prInfo['DCS_DATE']  = Carbon::now()->format('Ym');
 
         /*
         Condition required here
@@ -566,7 +488,7 @@ class digitalprController extends Controller
         @ PR number generate
         */
 
-    /* Activate after live start */  
+    /* Activate after live start   
         $prStatus= $prInfo['DTYPE']; 
         if($prStatus=='1'){
             if($prInfo['PTYPE']=='EKOK'){
@@ -596,50 +518,25 @@ class digitalprController extends Controller
 
         $prInfo['PR_NO'] = $prNo[0]['nextval'];
 
-        /* Activate after live end */
+         Activate after live end */
 
         /* Generate DCS number start */
         $dcsOrgCode = $prInfo['ORG_CODE'];
 
         if($prInfo['PTYPE']=='EKOK'){
-            $V_DCS_NO='FE'.$dcsOrgCode.'-'.$prInfo['ZONE_CODE'].'-'.$dcsDate;
+            $V_DCS_NO='FE'.$dcsOrgCode.'-'.$prInfo['ZONE_CODE'].'-'.$prInfo['DCS_DATE'];
         }elseif($prInfo['PTYPE']=='SB'){            
-            $V_DCS_NO='FS'.$dcsOrgCode.'-'.$prInfo['ZONE_CODE'].'-'.$dcsDate;
+            $V_DCS_NO='FS'.$dcsOrgCode.'-'.$prInfo['ZONE_CODE'].'-'.$prInfo['DCS_DATE'];
         }
 
-        $prInfo['DCS_NO'] = $V_DCS_NO;
-        $prInfo['PR_STATUS'] = $prInfo['DTYPE'];
+        //$prInfo['DCS_NO'] = $V_DCS_NO;
+        //$prInfo['PR_STATUS'] = $prInfo['DTYPE'];
         unset($prInfo['DTYPE']);
         /* Generate DCS number end */       
 
-        //Insert in test table DIGITALPR.PR_INFO
-        $prInfo = DB::table( 'Pr_Info' )->insert( $prInfo );
-
-        $prInfo = json_decode( json_encode($prInfo), true);
-
-        // dd($prInfo);
-        // exit();
-
-        return response([ 'pr_info' => ApiResource::collection($prInfo), 'message' => 'Success'], 200);              
-    }
-
-    /*
-      * Store successfull PR data
-     */
-    public function submit_prinfo2(Request $request)
-    {    
-        $prInfo = $request->all();
-   
-        //$prInfo= auth()->user(); 
-
-        //$payments['USER_ID'] = $user->emp_code;
-        //$payments['ZONE_CODE'] = $user->zone_code;
-
-
-         $prInfo['PR_DATE']  = Carbon::now()->toDateTimeString();
-
-        //  dd($prInfo);
-        //  exit();
+        dd($prInfo);
+        exit();
+  
         //Insert in test table DIGITALPR.PR_INFO
         $prInfo = DB::table( 'Pr_Info' )->insert( $prInfo );
 
